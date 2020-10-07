@@ -3274,8 +3274,8 @@ foldr f z = go z
 foldr' :: (a -> b -> b) -> b -> Map k a -> b
 foldr' f z = go z
   where
-    go !z' Tip             = z'
-    go z' (Bin _ _ x l r) = go (f x (go z' r)) l
+    go !z' Tip            = z'
+    go z' (Bin _ _ x l r) = go (f x $! go z' r) l
 {-# INLINE foldr' #-}
 
 -- | /O(n)/. Fold the values in the map using the given left-associative
@@ -3300,8 +3300,10 @@ foldl f z = go z
 foldl' :: (a -> b -> a) -> a -> Map k b -> a
 foldl' f z = go z
   where
-    go !z' Tip             = z'
-    go z' (Bin _ _ x l r) = go (f (go z' l) x) r
+    go !z' Tip            = z'
+    go z' (Bin _ _ x l r) =
+      let !z'' = go z' l
+      in go (f z'' x) r
 {-# INLINE foldl' #-}
 
 -- | /O(n)/. Fold the keys and values in the map using the given right-associative
