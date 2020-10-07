@@ -3330,7 +3330,7 @@ foldrWithKey' :: (k -> a -> b -> b) -> b -> Map k a -> b
 foldrWithKey' f z = go z
   where
     go !z' Tip              = z'
-    go z' (Bin _ kx x l r) = go (f kx x (go z' r)) l
+    go z' (Bin _ kx x l r) = go (f kx x $! go z' r) l
 {-# INLINE foldrWithKey' #-}
 
 -- | /O(n)/. Fold the keys and values in the map using the given left-associative
@@ -3356,8 +3356,10 @@ foldlWithKey f z = go z
 foldlWithKey' :: (a -> k -> b -> a) -> a -> Map k b -> a
 foldlWithKey' f z = go z
   where
-    go !z' Tip              = z'
-    go z' (Bin _ kx x l r) = go (f (go z' l) kx x) r
+    go !z' Tip             = z'
+    go z' (Bin _ kx x l r) =
+      let !z'' = go z' l
+      in go (f z'' kx x) r
 {-# INLINE foldlWithKey' #-}
 
 -- | /O(n)/. Fold the keys and values in the map using the given monoid, such that
