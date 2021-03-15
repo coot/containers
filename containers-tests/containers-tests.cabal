@@ -465,6 +465,8 @@ test-suite map-strictness-properties
     , test-framework              >=0.3.3
     , test-framework-quickcheck2  >=0.2.9
     , test-framework-hunit
+  if impl(ghc >= 8.6.0)
+    build-depends:  nothunks
 
   ghc-options:      -Wall
   other-extensions:

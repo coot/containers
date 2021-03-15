@@ -1,3 +1,5 @@
+{-# LANGUAGE BangPatterns #-}
+{-# LANGUAGE CPP          #-}
 {-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Main (main) where
@@ -6,6 +8,9 @@ import Test.ChasingBottoms.IsBottom
 import Test.Framework (Test, TestName, defaultMain, testGroup)
 import Test.Framework.Providers.QuickCheck2 (testProperty)
 import Test.QuickCheck (Arbitrary(arbitrary))
+#if __GLASGOW_HASKELL__ >= 806
+import Test.QuickCheck (Property,ioProperty)
+#endif
 import Test.QuickCheck.Function (Fun(..), apply)
 import Test.Framework.Providers.HUnit
 import Test.HUnit hiding (Test)
@@ -13,6 +18,13 @@ import Test.HUnit hiding (Test)
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as M
 import qualified Data.Map as L
+#if __GLASGOW_HASKELL__ >= 806
+import Data.Maybe (isNothing)
+#endif
+
+#if __GLASGOW_HASKELL__ >= 806
+import NoThunks.Class (NoThunks, noThunks)
+#endif
 
 import Utils.IsUnit
 
@@ -81,6 +93,37 @@ pInsertLookupWithKeyValueStrict f k v m
     | M.member k m = (isBottom $ M.insertLookupWithKey (const3 bottom) k v m) &&
                      not (isBottom $ M.insertLookupWithKey (const3 1) k bottom m)
     | otherwise    = isBottom $ M.insertLookupWithKey (apply3 f) k bottom m
+
+#if __GLASGOW_HASKELL__ >= 806
+-- | Check that after evaluating the argument to weak head normal form there
+-- are no thunks.
+--
+whnfHasNoThunks :: NoThunks a => a -> Property
+whnfHasNoThunks a = ioProperty
+                  . fmap isNothing
+                  . noThunks []
+                 $! a
+#endif
+
+#if __GLASGOW_HASKELL__ >= 806
+pStrictFoldr' :: Map Int Int -> Property
+pStrictFoldr' m = whnfHasNoThunks (M.foldr' (:) [] m)
+#endif
+
+#if __GLASGOW_HASKELL__ >= 806
+pStrictFoldl' :: Map Int Int -> Property
+pStrictFoldl' m = whnfHasNoThunks (M.foldl' (flip (:)) [] m)
+#endif
+
+#if __GLASGOW_HASKELL__ >= 806
+pStrictFoldrWithKey' :: Map Int Int -> Property
+pStrictFoldrWithKey' m = whnfHasNoThunks (M.foldrWithKey' (\_ a as -> a : as) [] m)
+#endif
+
+#if __GLASGOW_HASKELL__ >= 806
+pStrictFoldlWithKey' :: Map Int Int -> Property
+pStrictFoldlWithKey' m = whnfHasNoThunks (M.foldlWithKey' (\as _ a -> a : as) [] m)
+#endif
 
 ------------------------------------------------------------------------
 -- check for extra thunks
@@ -162,6 +205,12 @@ tests =
         pInsertLookupWithKeyKeyStrict
       , testProperty "insertLookupWithKey is value-strict"
         pInsertLookupWithKeyValueStrict
+#if __GLASGOW_HASKELL__ >= 806
+      , testProperty "strict foldr'" pStrictFoldr'
+      , testProperty "strict foldl'" pStrictFoldl'
+      , testProperty "strict foldrWithKey'" pStrictFoldrWithKey'
+      , testProperty "strict foldlWithKey'" pStrictFoldlWithKey'
+#endif
       ]
       , tExtraThunksM
       , tExtraThunksL
